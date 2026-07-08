@@ -72,8 +72,38 @@ GROUPS = {
 }
 
 
+def normalize_symbol(token: str) -> str:
+    """Add the Yahoo Finance exchange suffix for bare China A-share codes.
+
+    Yahoo needs an exchange suffix for Chinese stocks. Users often type just the
+    6-digit code, so we map it automatically:
+      - 6xxxxx           -> .SS  (Shanghai Stock Exchange)
+      - 0xxxxx / 3xxxxx  -> .SZ  (Shenzhen Stock Exchange)
+      - 4xxxxx / 8xxxxx  -> .BJ  (Beijing Stock Exchange)
+    Tokens that already contain a suffix (a dot) or are not 6-digit numeric
+    codes (e.g. US tickers like AAPL) are left unchanged.
+    """
+    if "." in token:
+        return token
+
+    if len(token) == 6 and token.isdigit():
+        first = token[0]
+        if first == "6":
+            return token + ".SS"
+        if first in ("0", "3"):
+            return token + ".SZ"
+        if first in ("4", "8"):
+            return token + ".BJ"
+
+    return token
+
+
 def parse_symbols(raw: str) -> List[str]:
-    """Split a free-form list of symbols on commas, spaces and newlines."""
+    """Split a free-form list of symbols on commas, spaces and newlines.
+
+    Bare China A-share codes get their Yahoo exchange suffix added automatically
+    (see normalize_symbol).
+    """
     if not raw:
         return []
 
@@ -82,7 +112,7 @@ def parse_symbols(raw: str) -> List[str]:
 
     seen = []
     for token in raw.split(" "):
-        token = token.strip().upper()
+        token = normalize_symbol(token.strip().upper())
         if token and token not in seen:
             seen.append(token)
     return seen

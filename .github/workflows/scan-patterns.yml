@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       symbols:
-        description: "Tickers (comma or space separated). US: AAPL MSFT | NSE: RELIANCE.NS"
+        description: "Tickers (space/comma sep). US: AAPL | A-share: 600519 or 000001 (suffix auto-added) | NSE: RELIANCE.NS"
         required: true
         default: "AAPL MSFT NVDA GOOGL AMZN"
       pattern:
