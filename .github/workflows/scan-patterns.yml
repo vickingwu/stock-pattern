@@ -15,11 +15,13 @@ on:
         required: true
         default: "AAPL MSFT NVDA GOOGL AMZN"
       pattern:
-        description: "Pattern to scan"
+        description: "Pattern to scan (everything = all detectors, most hits)"
         required: true
-        default: "all"
+        default: "everything"
         type: choice
         options:
+          - everything
+          - trend
           - all
           - bull
           - bear

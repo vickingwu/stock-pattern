@@ -64,11 +64,16 @@ FN_DICT: Dict[str, Callable] = {
 }
 
 GROUPS = {
+    # "everything" runs ALL detectors, including triangles, trendlines and
+    # harmonics. Highest chance of returning a hit on a small watchlist.
+    "everything": tuple(FN_DICT.keys()),
     "all": ("vcpu", "hnsu", "dbot", "flagu", "vcpd", "hnsd", "dtop", "flagd"),
     "bull": ("vcpu", "hnsu", "dbot", "flagu"),
     "bear": ("vcpd", "hnsd", "dtop", "flagd"),
     "bull_harm": ("abcdu", "batu", "gartu", "crabu", "bflyu"),
     "bear_harm": ("abcdd", "batd", "gartd", "crabd", "bflyd"),
+    # Trendlines + triangles only (these fire more often than the reversal set).
+    "trend": ("trng", "uptl", "dntl", "flagu", "flagd"),
 }
 
 
@@ -256,17 +261,33 @@ def main():
 
     pattern, fns = resolve_functions(pattern_input)
 
-    config: dict = {"LOADER": "YFinanceLoader", "DEFAULT_TF": "daily"}
-    loader = YFinanceLoader(config, tf=timeframe)
+    # Lookback (number of bars) and pivot sensitivity are tunable via env vars.
+    # More bars + smaller pivot window => more pivots => more pattern candidates.
+    def _int_env(name, default):
+        try:
+            return max(1, int(os.environ.get(name, "") or default))
+        except ValueError:
+            return default
 
-    logger.info(f"Scanning {len(symbols)} symbol(s) for '{pattern}' on {timeframe}...")
+    lookback = _int_env("LOOKBACK", 300)
+    bars_left = _int_env("LEFT", 5)
+    bars_right = _int_env("RIGHT", 5)
+
+    config: dict = {"LOADER": "YFinanceLoader", "DEFAULT_TF": "daily"}
+    loader = YFinanceLoader(config, tf=timeframe, period=lookback)
+
+    logger.info(
+        f"Scanning {len(symbols)} symbol(s) for '{pattern}' on {timeframe} "
+        f"(lookback={lookback}, pivots L{bars_left}/R{bars_right})..."
+    )
 
     all_patterns: List[dict] = []
     scanned: List[str] = []
     no_data: List[str] = []
 
     for sym in symbols:
-        had_data, found = scan_symbol(sym, fns, loader, config)
+        had_data, found = scan_symbol(sym, fns, loader, config,
+                                      bars_left=bars_left, bars_right=bars_right)
 
         if not had_data:
             no_data.append(sym)
