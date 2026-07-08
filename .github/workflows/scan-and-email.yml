@@ -1,0 +1,89 @@
+name: Scan patterns and email report
+
+# Two ways to trigger:
+# 1. Manually from the GitHub "Actions" tab -> this workflow -> "Run workflow".
+#    You type the tickers, pattern and timeframe right there in the form.
+# 2. On a schedule (optional) using the default symbols below.
+on:
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: "Tickers (comma or space separated). US: AAPL MSFT | NSE: RELIANCE.NS"
+        required: true
+        default: "AAPL MSFT NVDA GOOGL AMZN"
+      pattern:
+        description: "Pattern to scan"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - bull
+          - bear
+          - bull_harm
+          - bear_harm
+          - vcpu
+          - vcpd
+          - dbot
+          - dtop
+          - hnsu
+          - hnsd
+          - trng
+      timeframe:
+        description: "Timeframe"
+        required: true
+        default: "daily"
+        type: choice
+        options:
+          - daily
+          - weekly
+          - monthly
+
+  # Optional daily schedule. Uncomment to enable (07:30 UTC on weekdays).
+  # schedule:
+  #   - cron: "30 7 * * 1-5"
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install yfinance
+
+      - name: Run scan and send email
+        working-directory: src
+        env:
+          # Scan inputs. For scheduled runs, github.event.inputs is empty so we
+          # fall back to sensible defaults.
+          SYMBOLS: ${{ github.event.inputs.symbols || 'AAPL MSFT NVDA GOOGL AMZN' }}
+          PATTERN: ${{ github.event.inputs.pattern || 'all' }}
+          TIMEFRAME: ${{ github.event.inputs.timeframe || 'daily' }}
+          # Email settings pulled from repository Secrets (Settings -> Secrets
+          # and variables -> Actions). Never hard-code these.
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        run: python scan_and_report.py
+
+      - name: Upload report as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-report
+          path: scan_report.html
+          if-no-files-found: ignore
