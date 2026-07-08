@@ -1,9 +1,12 @@
-name: Scan patterns and email report
+name: Scan patterns and build report
 
-# Two ways to trigger:
-# 1. Manually from the GitHub "Actions" tab -> this workflow -> "Run workflow".
-#    You type the tickers, pattern and timeframe right there in the form.
-# 2. On a schedule (optional) using the default symbols below.
+# How to use:
+# GitHub "Actions" tab -> "Scan patterns and build report" -> "Run workflow".
+# Type the tickers, pick a pattern and timeframe, then Run.
+# The report appears as:
+#   1. A summary table on the run page (Job Summary)
+#   2. A downloadable "scan-report" artifact (scan_report.html)
+# No email, no secrets required.
 on:
   workflow_dispatch:
     inputs:
@@ -39,10 +42,6 @@ on:
           - weekly
           - monthly
 
-  # Optional daily schedule. Uncomment to enable (07:30 UTC on weekdays).
-  # schedule:
-  #   - cron: "30 7 * * 1-5"
-
 jobs:
   scan:
     runs-on: ubuntu-latest
@@ -62,22 +61,12 @@ jobs:
           pip install -r requirements.txt
           pip install yfinance
 
-      - name: Run scan and send email
+      - name: Run scan and build report
         working-directory: src
         env:
-          # Scan inputs. For scheduled runs, github.event.inputs is empty so we
-          # fall back to sensible defaults.
-          SYMBOLS: ${{ github.event.inputs.symbols || 'AAPL MSFT NVDA GOOGL AMZN' }}
-          PATTERN: ${{ github.event.inputs.pattern || 'all' }}
-          TIMEFRAME: ${{ github.event.inputs.timeframe || 'daily' }}
-          # Email settings pulled from repository Secrets (Settings -> Secrets
-          # and variables -> Actions). Never hard-code these.
-          MAIL_TO: ${{ secrets.MAIL_TO }}
-          MAIL_FROM: ${{ secrets.MAIL_FROM }}
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SYMBOLS: ${{ github.event.inputs.symbols }}
+          PATTERN: ${{ github.event.inputs.pattern }}
+          TIMEFRAME: ${{ github.event.inputs.timeframe }}
         run: python scan_and_report.py
 
       - name: Upload report as artifact
